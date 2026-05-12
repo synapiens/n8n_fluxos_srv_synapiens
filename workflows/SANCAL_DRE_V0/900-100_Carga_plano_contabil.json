@@ -1,0 +1,622 @@
+{
+  "updatedAt": "2026-05-12T00:38:08.051Z",
+  "createdAt": "2026-04-25T07:35:44.295Z",
+  "id": "kaMChOx5eycxaz8o",
+  "name": "900-100 / Carga plano contabil",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Setup obrigatório\n\n**Credencial Supabase API**\nSettings > Credentials > Add > Supabase API\n- Host: https://oezifbbcnqfpjakyrohh.supabase.co\n- Service Role Secret: sua service_role key\n\nVincule nos nós:\n- Download CSV do Storage\n- Upsert no Supabase\n\n**Payload do webhook (POST):**\n{\n  file_path: <caminho no bucket, ex: uuid/empresa/arquivo.csv>,\n  table: minha_tabela,\n  on_conflict: id\n}",
+        "height": 340,
+        "width": 500,
+        "color": 4
+      },
+      "id": "4c864c1e-cdcf-489c-9b70-947c636e22cf",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "csv-upsert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c5ce36ff-c7e1-49df-b85c-085ecda4fa34",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ],
+      "webhookId": "csv-upsert-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f2",
+              "name": "file_path",
+              "value": "={{ $json.body.file_path }}",
+              "type": "string"
+            },
+            {
+              "id": "f3",
+              "name": "table",
+              "value": "={{ $json.body.table }}",
+              "type": "string"
+            },
+            {
+              "id": "f4",
+              "name": "on_conflict",
+              "value": "={{ $json.on_conflict ?? 'id' }}",
+              "type": "string"
+            },
+            {
+              "id": "38b5ab89-c551-4c39-b29a-796716494d0c",
+              "name": "body.cliente_id",
+              "value": "={{ $json.body.cliente_id }}",
+              "type": "string"
+            },
+            {
+              "id": "e43b9249-615b-4daa-829c-bb845a34576f",
+              "name": "body.emp_nome_reduzido",
+              "value": "={{ $json.body.emp_nome_reduzido }}",
+              "type": "string"
+            },
+            {
+              "id": "11d051f2-f23d-4000-af52-4f05eb580321",
+              "name": "body.cnpj_raiz",
+              "value": "={{ $json.body.cnpj_raiz }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b43c015f-a950-44e1-9558-0cbcd18ae35e",
+      "name": "Set Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://oezifbbcnqfpjakyrohh.supabase.co/storage/v1/object/conta_upload/' + $json.file_path }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "csvFile"
+            }
+          }
+        }
+      },
+      "id": "6ddffd55-6eaa-41ab-ab91-3e558aa621ae",
+      "name": "Download CSV do Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        400
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "XZF8BL3CGNL9YXQR",
+          "name": "Supa Sancal DRE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  (() => {\n    try {\n      const http = $('HTTP Request').first().json;\n\n      if (http.error || http.code) {\n        return {\n          success: false,\n          message: 'Erro ao gravar no Supabase.',\n          error: http.message || http.error || JSON.stringify(http)\n        };\n      }\n\n      const total = $('Parse HTTP').first().json.total;\n\n      return {\n        success: true,\n        message: `Gravação concluída com sucesso. ${total} registros gravados.`,\n        records_upserted: total\n      };\n\n    } catch (e) {\n      return {\n        success: false,\n        message: 'Erro inesperado ao processar resposta.',\n        error: e.message\n      };\n    }\n  })()\n}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "460ce1d3-6155-43fa-be78-78250cc96dbd",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        400
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó Code: \"Montar Batch\"\nconst ctx = $('Set Context').first().json;\n\nconst cliente_id = ctx.body.cliente_id;\nconst cnpj_raiz  = ctx.body.cnpj_raiz;\nconst reduz_emp  = ctx.body.emp_nome_reduzido;\n\nconst rows = items.map(item => ({\n  cliente_id,\n  reduz_emp,\n  cnpj_raiz,\n  conta_estru:  item.json.codigo,\n  conta_grau:   item.json.nivel,\n  conta_descri: item.json.descricao,\n  conta_reduz:  item.json.reduzido ?? null,\n  // is_analitica: item.json.is_analitica,\n}));\n\nconst BATCH_SIZE = 500;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += BATCH_SIZE) {\n  batches.push({ json: { rows: rows.slice(i, i + BATCH_SIZE), total: rows.length } });\n}\n\nreturn batches;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        400
+      ],
+      "id": "234d9ff1-2445-47fc-a048-0d56c6ae1d13",
+      "name": "Parse HTTP"
+    },
+    {
+      "parameters": {
+        "jsCode": "const binaryBuffer = await this.helpers.getBinaryDataBuffer(0, 'csvFile');\nconst content = binaryBuffer.toString('latin1');\n\nconst SKIP_PATTERNS = [\n  /^;*$/,\n  /^Listagem/i,\n  /^Empresa:/i,\n  /^CNPJ:/i,\n  /^C[oó]digo;/i,\n];\n\nconst rows = [];\n\nfor (const rawLine of content.split('\\n')) {\n  const line = rawLine.replace(/\\r/g, '').trim();\n  if (!line) continue;\n  if (SKIP_PATTERNS.some(p => p.test(line))) continue;\n\n  const cols = line.split(';');\n  const codigo    = (cols[0] || '').trim();\n  const reduzido  = (cols[3] || '').trim();\n  const descricao = (cols[6] || '').trim();\n\n  if (!codigo || !descricao) continue;\n\n  const nivel = codigo.split('.').length;\n\n  rows.push({\n    json: {\n      codigo,\n      ...(reduzido ? { reduzido } : {}),\n      descricao,\n      nivel,\n      is_analitica: reduzido !== '',\n    }\n  });\n}\n\nif (rows.length === 0) throw new Error('Nenhuma linha válida encontrada no CSV.');\n\nreturn rows;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        400
+      ],
+      "id": "364f1548-e33b-452d-8d8d-6a7e7053677c",
+      "name": "Parse Arquivo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://oezifbbcnqfpjakyrohh.supabase.co/rest/v1/dre_plano_contabil?on_conflict=cliente_id,cnpj_raiz,conta_estru",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.rows}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1056,
+        400
+      ],
+      "id": "a67c206c-022f-44cc-8f04-dacd02a859ec",
+      "name": "Grava Plano",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XZF8BL3CGNL9YXQR",
+          "name": "Supa Sancal DRE"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Context": {
+      "main": [
+        [
+          {
+            "node": "Download CSV do Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download CSV do Storage": {
+      "main": [
+        [
+          {
+            "node": "Parse Arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse HTTP": {
+      "main": [
+        [
+          {
+            "node": "Grava Plano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Arquivo": {
+      "main": [
+        [
+          {
+            "node": "Parse HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grava Plano": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "970ec00c-32e8-41d0-be66-e2c287d8a354",
+  "activeVersionId": "970ec00c-32e8-41d0-be66-e2c287d8a354",
+  "versionCounter": 19,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-04-25T07:35:44.295Z",
+      "createdAt": "2026-04-25T07:35:44.295Z",
+      "role": "workflow:owner",
+      "workflowId": "kaMChOx5eycxaz8o",
+      "projectId": "HDCZE4IUw9KS2WL1",
+      "project": {
+        "updatedAt": "2026-04-25T06:06:33.787Z",
+        "createdAt": "2026-04-25T05:57:18.593Z",
+        "id": "HDCZE4IUw9KS2WL1",
+        "name": "Synapiens Development <synapiens@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "a3e10bf8-6240-4e87-9f09-99823d96b21a"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-05-12T00:37:39.540Z",
+      "createdAt": "2026-05-12T00:37:39.540Z",
+      "id": "rf0POV5W2OD5ST1P",
+      "name": "SANCAL DRE V0"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-04-26T21:20:22.842Z",
+    "createdAt": "2026-04-26T21:19:51.365Z",
+    "versionId": "970ec00c-32e8-41d0-be66-e2c287d8a354",
+    "workflowId": "kaMChOx5eycxaz8o",
+    "nodes": [
+      {
+        "parameters": {
+          "content": "## Setup obrigatório\n\n**Credencial Supabase API**\nSettings > Credentials > Add > Supabase API\n- Host: https://oezifbbcnqfpjakyrohh.supabase.co\n- Service Role Secret: sua service_role key\n\nVincule nos nós:\n- Download CSV do Storage\n- Upsert no Supabase\n\n**Payload do webhook (POST):**\n{\n  file_path: <caminho no bucket, ex: uuid/empresa/arquivo.csv>,\n  table: minha_tabela,\n  on_conflict: id\n}",
+          "height": 340,
+          "width": 500,
+          "color": 4
+        },
+        "id": "4c864c1e-cdcf-489c-9b70-947c636e22cf",
+        "name": "Sticky Note",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "csv-upsert",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "c5ce36ff-c7e1-49df-b85c-085ecda4fa34",
+        "name": "Webhook Trigger",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          400
+        ],
+        "webhookId": "csv-upsert-webhook"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "f2",
+                "name": "file_path",
+                "value": "={{ $json.body.file_path }}",
+                "type": "string"
+              },
+              {
+                "id": "f3",
+                "name": "table",
+                "value": "={{ $json.body.table }}",
+                "type": "string"
+              },
+              {
+                "id": "f4",
+                "name": "on_conflict",
+                "value": "={{ $json.on_conflict ?? 'id' }}",
+                "type": "string"
+              },
+              {
+                "id": "38b5ab89-c551-4c39-b29a-796716494d0c",
+                "name": "body.cliente_id",
+                "value": "={{ $json.body.cliente_id }}",
+                "type": "string"
+              },
+              {
+                "id": "e43b9249-615b-4daa-829c-bb845a34576f",
+                "name": "body.emp_nome_reduzido",
+                "value": "={{ $json.body.emp_nome_reduzido }}",
+                "type": "string"
+              },
+              {
+                "id": "11d051f2-f23d-4000-af52-4f05eb580321",
+                "name": "body.cnpj_raiz",
+                "value": "={{ $json.body.cnpj_raiz }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "b43c015f-a950-44e1-9558-0cbcd18ae35e",
+        "name": "Set Context",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          224,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "url": "={{ 'https://oezifbbcnqfpjakyrohh.supabase.co/storage/v1/object/conta_upload/' + $json.file_path }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "supabaseApi",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "file",
+                "outputPropertyName": "csvFile"
+              }
+            }
+          }
+        },
+        "id": "6ddffd55-6eaa-41ab-ab91-3e558aa621ae",
+        "name": "Download CSV do Storage",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          432,
+          400
+        ],
+        "credentials": {
+          "supabaseApi": {
+            "id": "XZF8BL3CGNL9YXQR",
+            "name": "Supa Sancal DRE"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{\n  (() => {\n    try {\n      const http = $('HTTP Request').first().json;\n\n      if (http.error || http.code) {\n        return {\n          success: false,\n          message: 'Erro ao gravar no Supabase.',\n          error: http.message || http.error || JSON.stringify(http)\n        };\n      }\n\n      const total = $('Parse HTTP').first().json.total;\n\n      return {\n        success: true,\n        message: `Gravação concluída com sucesso. ${total} registros gravados.`,\n        records_upserted: total\n      };\n\n    } catch (e) {\n      return {\n        success: false,\n        message: 'Erro inesperado ao processar resposta.',\n        error: e.message\n      };\n    }\n  })()\n}}",
+          "options": {
+            "responseCode": 200
+          }
+        },
+        "id": "460ce1d3-6155-43fa-be78-78250cc96dbd",
+        "name": "Responder Webhook",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1280,
+          400
+        ],
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Nó Code: \"Montar Batch\"\nconst ctx = $('Set Context').first().json;\n\nconst cliente_id = ctx.body.cliente_id;\nconst cnpj_raiz  = ctx.body.cnpj_raiz;\nconst reduz_emp  = ctx.body.emp_nome_reduzido;\n\nconst rows = items.map(item => ({\n  cliente_id,\n  reduz_emp,\n  cnpj_raiz,\n  conta_estru:  item.json.codigo,\n  conta_grau:   item.json.nivel,\n  conta_descri: item.json.descricao,\n  conta_reduz:  item.json.reduzido ?? null,\n  // is_analitica: item.json.is_analitica,\n}));\n\nconst BATCH_SIZE = 500;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += BATCH_SIZE) {\n  batches.push({ json: { rows: rows.slice(i, i + BATCH_SIZE), total: rows.length } });\n}\n\nreturn batches;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          848,
+          400
+        ],
+        "id": "234d9ff1-2445-47fc-a048-0d56c6ae1d13",
+        "name": "Parse HTTP"
+      },
+      {
+        "parameters": {
+          "jsCode": "const binaryBuffer = await this.helpers.getBinaryDataBuffer(0, 'csvFile');\nconst content = binaryBuffer.toString('latin1');\n\nconst SKIP_PATTERNS = [\n  /^;*$/,\n  /^Listagem/i,\n  /^Empresa:/i,\n  /^CNPJ:/i,\n  /^C[oó]digo;/i,\n];\n\nconst rows = [];\n\nfor (const rawLine of content.split('\\n')) {\n  const line = rawLine.replace(/\\r/g, '').trim();\n  if (!line) continue;\n  if (SKIP_PATTERNS.some(p => p.test(line))) continue;\n\n  const cols = line.split(';');\n  const codigo    = (cols[0] || '').trim();\n  const reduzido  = (cols[3] || '').trim();\n  const descricao = (cols[6] || '').trim();\n\n  if (!codigo || !descricao) continue;\n\n  const nivel = codigo.split('.').length;\n\n  rows.push({\n    json: {\n      codigo,\n      ...(reduzido ? { reduzido } : {}),\n      descricao,\n      nivel,\n      is_analitica: reduzido !== '',\n    }\n  });\n}\n\nif (rows.length === 0) throw new Error('Nenhuma linha válida encontrada no CSV.');\n\nreturn rows;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          656,
+          400
+        ],
+        "id": "364f1548-e33b-452d-8d8d-6a7e7053677c",
+        "name": "Parse Arquivo"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://oezifbbcnqfpjakyrohh.supabase.co/rest/v1/dre_plano_contabil?on_conflict=cliente_id,cnpj_raiz,conta_estru",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "supabaseApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Prefer",
+                "value": "resolution=merge-duplicates"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{$json.rows}}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          1056,
+          400
+        ],
+        "id": "a67c206c-022f-44cc-8f04-dacd02a859ec",
+        "name": "Grava Plano",
+        "credentials": {
+          "supabaseApi": {
+            "id": "XZF8BL3CGNL9YXQR",
+            "name": "Supa Sancal DRE"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook Trigger": {
+        "main": [
+          [
+            {
+              "node": "Set Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Set Context": {
+        "main": [
+          [
+            {
+              "node": "Download CSV do Storage",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download CSV do Storage": {
+        "main": [
+          [
+            {
+              "node": "Parse Arquivo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse HTTP": {
+        "main": [
+          [
+            {
+              "node": "Grava Plano",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Arquivo": {
+        "main": [
+          [
+            {
+              "node": "Parse HTTP",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Grava Plano": {
+        "main": [
+          [
+            {
+              "node": "Responder Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Synapiens Development",
+    "name": "Version 970ec00c",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-04-26T21:20:22.835Z",
+        "id": 14,
+        "workflowId": "kaMChOx5eycxaz8o",
+        "versionId": "970ec00c-32e8-41d0-be66-e2c287d8a354",
+        "event": "activated",
+        "userId": "a3e10bf8-6240-4e87-9f09-99823d96b21a"
+      },
+      {
+        "createdAt": "2026-04-26T21:20:29.133Z",
+        "id": 15,
+        "workflowId": "kaMChOx5eycxaz8o",
+        "versionId": "970ec00c-32e8-41d0-be66-e2c287d8a354",
+        "event": "deactivated",
+        "userId": "a3e10bf8-6240-4e87-9f09-99823d96b21a"
+      },
+      {
+        "createdAt": "2026-04-26T21:20:29.251Z",
+        "id": 16,
+        "workflowId": "kaMChOx5eycxaz8o",
+        "versionId": "970ec00c-32e8-41d0-be66-e2c287d8a354",
+        "event": "activated",
+        "userId": "a3e10bf8-6240-4e87-9f09-99823d96b21a"
+      }
+    ]
+  }
+}
