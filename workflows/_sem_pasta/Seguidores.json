@@ -1,0 +1,43 @@
+{
+  "updatedAt": "2026-05-11T01:51:04.726Z",
+  "createdAt": "2026-05-11T01:45:02.334Z",
+  "id": "yGYF8zowh0nzjXsW",
+  "name": "Seguidores",
+  "description": null,
+  "active": false,
+  "isArchived": true,
+  "nodes": [],
+  "connections": {},
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "bf437d30-9f0c-468a-877a-53c87520c37e",
+  "activeVersionId": null,
+  "versionCounter": 11,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-05-11T01:45:02.334Z",
+      "createdAt": "2026-05-11T01:45:02.334Z",
+      "role": "workflow:owner",
+      "workflowId": "yGYF8zowh0nzjXsW",
+      "projectId": "HDCZE4IUw9KS2WL1",
+      "project": {
+        "updatedAt": "2026-04-25T06:06:33.787Z",
+        "createdAt": "2026-04-25T05:57:18.593Z",
+        "id": "HDCZE4IUw9KS2WL1",
+        "name": "Synapiens Development <synapiens@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "a3e10bf8-6240-4e87-9f09-99823d96b21a"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}
