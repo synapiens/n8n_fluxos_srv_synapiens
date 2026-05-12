@@ -1,0 +1,302 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        -256
+      ],
+      "id": "c905e30a-348e-4ce8-a0e3-52d490a5bb69",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-1",
+              "name": "githubOwner",
+              "value": "synapiens",
+              "type": "string"
+            },
+            {
+              "id": "cfg-2",
+              "name": "githubRepo",
+              "value": "n8n_fluxos_srv_synapiens",
+              "type": "string"
+            },
+            {
+              "id": "cfg-3",
+              "name": "githubBranch",
+              "value": "main",
+              "type": "string"
+            },
+            {
+              "id": "cfg-4",
+              "name": "githubToken",
+              "value": "Bearer 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",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        -256
+      ],
+      "id": "8c5dfaca-9d9b-4a90-81e0-9e81abb3564c",
+      "name": "Configurações"
+    },
+    {
+      "parameters": {
+        "filters": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        704,
+        -256
+      ],
+      "id": "677c71a9-81b4-4b34-a799-ade97b72ce82",
+      "name": "Lista Fluxos",
+      "credentials": {
+        "n8nApi": {
+          "id": "UOklmvwZzR6quRdj",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "filter-self",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "={{ $workflow.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        272,
+        80
+      ],
+      "id": "35d6dc90-5795-4eb3-9fb4-9eb858991cfb",
+      "name": "Ignora próprio workflow"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        288,
+        288
+      ],
+      "id": "c768c9e7-5d7c-402f-9b51-6eea77d66c72",
+      "name": "Loop Fluxos"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "workflowId": "={{ $json.id }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        528,
+        304
+      ],
+      "id": "cf8526e3-0845-41fe-8265-a9794a7fd58b",
+      "name": "Get Workflow",
+      "credentials": {
+        "n8nApi": {
+          "id": "UOklmvwZzR6quRdj",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Configurações ─────────────────────────────────────────\nconst workflow = $json;\nconst config   = $('Configurações').first().json;\n\n// ── Gera base64 do conteúdo ───────────────────────────────\nconst content = JSON.stringify(workflow, null, 2);\nconst base64  = Buffer.from(content).toString('base64');\n\n// ── Determina pasta ───────────────────────────────────────\nlet folderPath = '_sem_pasta';\nif (workflow.parentFolder && workflow.parentFolder.name) {\n  folderPath = workflow.parentFolder.name;\n} else if (workflow.folder && workflow.folder.name) {\n  folderPath = workflow.folder.name;\n} else if (workflow.tags && workflow.tags.length > 0) {\n  folderPath = workflow.tags[0].name;\n}\n\nconst sanitize = (s) => String(s)\n  .normalize('NFD')\n  .replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/[^a-zA-Z0-9\\-_\\s]/g, '')\n  .trim()\n  .replace(/\\s+/g, '_');\n\nconst filePath = `workflows/${sanitize(folderPath)}/${sanitize(workflow.name)}.json`;\n\nconst headers = {\n  'Authorization'       : config.githubToken,\n  'Accept'              : 'application/vnd.github+json',\n  'X-GitHub-Api-Version': '2022-11-28',\n  'Content-Type'        : 'application/json'\n};\n\nconst url = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/contents/${filePath}`;\n\n// ── Busca SHA atual ───────────────────────────────────────\nconst getSha = async () => {\n  try {\n    const resp = await this.helpers.httpRequest({\n      method: 'GET',\n      url,\n      headers,\n      returnFullResponse: true,\n      ignoreHttpStatusErrors: true\n    });\n    if (resp.statusCode === 200 && resp.body && resp.body.sha) {\n      return resp.body.sha;\n    }\n  } catch (e) {}\n  return null;\n};\n\n// ── PUT com retry no 409 ──────────────────────────────────\nconst salvar = async (sha, tentativa) => {\n  const payload = {\n    message: `chore: backup \"${workflow.name}\"`,\n    content : base64,\n    branch  : config.githubBranch\n  };\n  if (sha) payload.sha = sha;\n\n  const resp = await this.helpers.httpRequest({\n    method: 'PUT',\n    url,\n    headers,\n    body: payload,\n    returnFullResponse: true,\n    ignoreHttpStatusErrors: true\n  });\n\n  if (resp.statusCode === 409 && tentativa < 3) {\n    await new Promise(r => setTimeout(r, 1000 * tentativa));\n    const novoSha = await getSha();\n    return salvar(novoSha, tentativa + 1);\n  }\n\n  return { resp, sha };\n};\n\n// ── Executa ───────────────────────────────────────────────\nconst shaInicial = await getSha();\nconst { resp } = await salvar(shaInicial, 1);\n\nif (resp.statusCode !== 200 && resp.statusCode !== 201) {\n  throw new Error(`GitHub ${resp.statusCode}: ${JSON.stringify(resp.body)}`);\n}\n\nreturn [{\n  json: {\n    workflowName : workflow.name,\n    filePath,\n    acao         : shaInicial ? 'ATUALIZADO' : 'CRIADO',\n    httpStatus   : resp.statusCode,\n    shaAnterior  : shaInicial || null,\n    commitSha    : resp.body && resp.body.commit ? resp.body.commit.sha : null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        304
+      ],
+      "id": "0b33ba77-7404-4f4d-a853-a7292a3dd1af",
+      "name": "Prepara e Salva no GitHub",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        288,
+        -64
+      ],
+      "id": "420e56ff-cb27-41de-b8e2-5e1c1650041e",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "content": "## ⚙️ Setup antes de executar\n\n**1. Node `Configurações`** — edite os 4 campos:\n- `githubOwner` → usuário/org do GitHub\n- `githubRepo` → nome do repositório\n- `githubBranch` → branch alvo (ex: `main`)\n- `githubToken` → `Bearer ghp_SEU_TOKEN`\n\n---\n\n**2. Credencial N8N Hermes**\nNodes `Lista Fluxos` e `Get Workflow`\nusam a credencial `N8N Hermes` (n8nApi).\n\n---\n\n**3. O node `Ignora próprio workflow`**\nFiltra o workflow de backup da lista\npara evitar conflito ao salvar a si mesmo.\nO backup deste workflow deve ser feito\nmanualmente ou por outro agendador.\n\n---\n\n**4. Estrutura gerada no repositório:**\n```\nworkflows/\n  NomeDaPasta/\n    NomeDoFluxo.json\n  _sem_pasta/\n    FluxoSemPasta.json\n```\n\n**5. Output por workflow:**\n```json\n{\n  \"acao\": \"CRIADO | ATUALIZADO\",\n  \"httpStatus\": 200,\n  \"commitSha\": \"abc123\"\n}\n```",
+        "height": 660,
+        "width": 480,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        -304
+      ],
+      "id": "ae44f214-de4a-48a4-af42-115a3050345a",
+      "name": "Instruções1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const itens = $json.data || [];\n\nconst erros    = itens.filter(i => i.error || (i.httpStatus && i.httpStatus >= 400));\nconst criados  = itens.filter(i => i.acao === 'CRIADO');\nconst atualizados = itens.filter(i => i.acao === 'ATUALIZADO');\n\nconsole.log('✅ Criados:', criados.length);\nconsole.log('🔄 Atualizados:', atualizados.length);\nconsole.log('❌ Erros:', erros.length, JSON.stringify(erros, null, 2));\n\nreturn [{ json: { criados: criados.length, atualizados: atualizados.length, erros } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -64
+      ],
+      "id": "baeab4a9-00cf-4046-9392-b918347a1bf9",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Configurações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurações": {
+      "main": [
+        [
+          {
+            "node": "Lista Fluxos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lista Fluxos": {
+      "main": [
+        [
+          {
+            "node": "Ignora próprio workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignora próprio workflow": {
+      "main": [
+        [
+          {
+            "node": "Loop Fluxos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Fluxos": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepara e Salva no GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara e Salva no GitHub": {
+      "main": [
+        [
+          {
+            "node": "Loop Fluxos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "282a51bc726215f9f86d0c4ed8cf23d5a2b67b55abf5a1aa5aacef00a92c98f4"
+  }
+}
