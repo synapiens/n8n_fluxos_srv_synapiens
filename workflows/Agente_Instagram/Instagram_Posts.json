@@ -1,0 +1,1026 @@
+{
+  "updatedAt": "2026-05-11T04:54:03.616Z",
+  "createdAt": "2026-05-07T20:19:44.364Z",
+  "id": "VdIbTgPcocM6mhdw",
+  "name": "Instagram Posts",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "4e99e445-3711-409a-aaa0-eb97b1243499",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "account_handle",
+              "value": "=marcelvanhattem",
+              "type": "string",
+              "id": "8cd609b2-d6be-41e5-93bc-6a7533f3c616"
+            },
+            {
+              "name": "post_limits",
+              "value": 50,
+              "type": "number",
+              "id": "b308cbe2-dc3b-4401-9a67-10da6c58e429"
+            },
+            {
+              "name": "SUPABASE_URL",
+              "value": "https://qwaebnwemqiwmyklsuzd.supabase.co",
+              "type": "string",
+              "id": "965d54df-f383-4146-bb44-552d9f3a7a1d"
+            },
+            {
+              "id": "106286e5-08b0-4526-8b3e-0addaabd3a28",
+              "name": "posts_days",
+              "value": "20",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        128
+      ],
+      "name": "Params",
+      "id": "f7a1eaa1-c52b-46bc-9d41-3440705f9e34"
+    },
+    {
+      "parameters": {
+        "tableId": "scrape_jobs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "username",
+              "fieldValue": "={{ $json.account_handle }}"
+            },
+            {
+              "fieldId": "limit_posts",
+              "fieldValue": "={{ $json.post_limits }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        496
+      ],
+      "name": "Cria Job",
+      "id": "66d19660-0fac-4665-9ad7-0d03e194acaa",
+      "credentials": {
+        "supabaseApi": {
+          "id": "o3wOJfxXzuZsmCis",
+          "name": "Supa Instagram Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "dSCLg0C3YEZ83HzYX",
+          "mode": "list"
+        },
+        "customBody": "={\n \"includeAboutSection\": false,\n \"usernames\": [\n \"{{ $('Params').item.json.account_handle }}\"\n ]\n}",
+        "timeout": {}
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        176
+      ],
+      "name": "Apify Profile",
+      "id": "34de94da-9253-4289-b5c3-b4009b1d764e",
+      "credentials": {
+        "apifyApi": {
+          "id": "xiqdphq7OrN8BBMi",
+          "name": "Apify Instagran Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Params').item.json.SUPABASE_URL }}/rest/v1/ig_profile?on_conflict=instagram_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "instagram_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "username",
+              "value": "={{ $json.username }}"
+            },
+            {
+              "name": "full_name",
+              "value": "={{ $json.fullName }}"
+            },
+            {
+              "name": "profile_pic_url_hd",
+              "value": "={{ $json.profilePicUrlHD }}"
+            },
+            {
+              "name": "biography",
+              "value": "={{ $json.biography }}"
+            },
+            {
+              "name": "external_url",
+              "value": "={{ $json.externalUrl }}"
+            },
+            {
+              "name": "followers_count",
+              "value": "={{ $json.followersCount }}"
+            },
+            {
+              "name": "following_count",
+              "value": "={{ $json.followsCount }}"
+            },
+            {
+              "name": "posts_count",
+              "value": "={{ $json.postsCount }}"
+            },
+            {
+              "name": "is_verified",
+              "value": "={{ $json.verified }}"
+            },
+            {
+              "name": "is_business_account",
+              "value": "={{ $json.isBusinessAccount }}"
+            },
+            {
+              "name": "business_category",
+              "value": "={{ $json.businessCategoryName }}"
+            },
+            {
+              "name": "location_name",
+              "value": "={{ $json.businessAddress?.location_name }}"
+            },
+            {
+              "name": "business_address",
+              "value": "={{ $json.businessAddress }}"
+            },
+            {
+              "name": "last_scraped_at",
+              "value": "={{ $now }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        16,
+        176
+      ],
+      "name": "Save Profile",
+      "id": "216d1a3d-5844-4823-bf11-e628b35b9015",
+      "credentials": {
+        "supabaseApi": {
+          "id": "o3wOJfxXzuZsmCis",
+          "name": "Supa Instagram Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "return $input.all().flatMap(item => item.json);"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        224,
+        336
+      ],
+      "name": "Flatten Posts",
+      "id": "6d78c86e-3294-481a-9d5e-355e7e046854"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Params').item.json.SUPABASE_URL }}/rest/v1/ig_posts?on_conflict=short_code",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "instagram_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "short_code",
+              "value": "={{ $json.shortCode }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.caption }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.type }}"
+            },
+            {
+              "name": "product_type",
+              "value": "={{ $json.productType }}"
+            },
+            {
+              "name": "likes_count",
+              "value": "={{ $json.likesCount }}"
+            },
+            {
+              "name": "comments_count",
+              "value": "={{ $json.commentsCount }}"
+            },
+            {
+              "name": "display_url",
+              "value": "={{ $json.displayUrl }}"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $json.videoUrl }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "owner_id",
+              "value": "={{ $json.ownerId }}"
+            },
+            {
+              "name": "owner_username",
+              "value": "={{ $json.ownerUsername }}"
+            },
+            {
+              "name": "owner_full_name",
+              "value": "={{ $json.ownerFullName }}"
+            },
+            {
+              "name": "hashtags",
+              "value": "={{ $json.hashtags }}"
+            },
+            {
+              "name": "coauthor_producers",
+              "value": "={{ $json.coauthorProducers }}"
+            },
+            {
+              "name": "is_comments_disabled",
+              "value": "={{ $json.isCommentsDisabled }}"
+            },
+            {
+              "name": "scraped_at",
+              "value": "={{ $now }}"
+            },
+            {
+              "name": "account_scraped",
+              "value": "={{ $('Params').item.json.account_handle }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        480,
+        336
+      ],
+      "name": "Save Posts",
+      "id": "dd0d2860-c01f-419d-ba33-6520bdecd9f3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "o3wOJfxXzuZsmCis",
+          "name": "Supa Instagram Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "943d6b02-6c89-41c3-af6b-78786012fe9e",
+              "leftValue": "={{ $json.dif_date.days }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        288,
+        -80
+      ],
+      "id": "dc9591ed-47a4-4cb0-ba85-eb633faab3da",
+      "name": "Testa 120 Horas"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b0453b64-40bc-44fe-8680-bb00c53b9a92",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        -64
+      ],
+      "id": "4b0d60d8-b83b-4adf-ab83-700f53671e25",
+      "name": "Perfil Existe?"
+    },
+    {
+      "parameters": {
+        "operation": "getTimeBetweenDates",
+        "startDate": "={{ $json.last_scraped_at }}",
+        "endDate": "={{ $now }}",
+        "outputFieldName": "dif_date",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -80
+      ],
+      "id": "6667ab5f-8d5e-461b-9a49-cbebc1599e28",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        304,
+        176
+      ],
+      "id": "8a2dafd3-63c3-4b8d-a4d9-854ae3ba8139",
+      "name": "Menos de 5 dias"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "ig_profile",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "username",
+              "keyValue": "={{ $('Params').item.json.account_handle }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -64
+      ],
+      "id": "d8478364-cd65-4ac5-ba5f-6c5b937cbd83",
+      "name": "Verifica Perfil",
+      "credentials": {
+        "supabaseApi": {
+          "id": "o3wOJfxXzuZsmCis",
+          "name": "Supa Instagram Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "42fb1be1-6bc8-484d-9a48-0ccad4e60e9e",
+              "leftValue": "={{ $json.last_scraped_date }}",
+              "rightValue": "",
+              "operator": {
+                "type": "dateTime",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -16,
+        496
+      ],
+      "id": "167985bd-3c9c-4e63-817e-fc256ce29dd0",
+      "name": "Nao tem Posts"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "nH2AHrwxeTRJoN5hX",
+          "mode": "list"
+        },
+        "customBody": "={\n \"dataDetailLevel\": \"basicData\",\n \"onlyPostsNewerThan\": \"{{ $('Params').item.json.posts_days }} days\",\n \"resultsLimit\": {{ $('Params').item.json.post_limits }},\n \"username\": [\"{{ $('Params').item.json.account_handle }}\"]\n}",
+        "timeout": {}
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        336
+      ],
+      "name": "Apify Posts Primeira",
+      "id": "da22f0b8-fb60-49a5-b4da-ec004138231a",
+      "credentials": {
+        "apifyApi": {
+          "id": "xiqdphq7OrN8BBMi",
+          "name": "Apify Instagran Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "nH2AHrwxeTRJoN5hX",
+          "mode": "list"
+        },
+        "customBody": "={\n    \"dataDetailLevel\": \"basicData\",\n    \"onlyPostsNewerThan\": \"{{ $json.last_scraped_date }}\",\n    \"resultsLimit\": {{ $('Params').item.json.post_limits }},\n    \"skipPinnedPosts\": false,\n    \"username\": [\n        \"{{ $('Params').item.json.account_handle }}\",\n        \"https://www.instagram.com/{{ $('Params').item.json.account_handle }}/\"\n    ]\n}",
+        "timeout": {}
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        704
+      ],
+      "name": "Apify Posts Data",
+      "id": "0bc3c9cb-28f4-42dc-af2f-e963ddf50ff7",
+      "credentials": {
+        "apifyApi": {
+          "id": "xiqdphq7OrN8BBMi",
+          "name": "Apify Instagran Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "viw_last_scrp_post",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "username",
+              "keyValue": "={{ $('Params').item.json.account_handle }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        496
+      ],
+      "id": "2322e096-1c9f-4de6-a99c-1f5dfdf6eb3e",
+      "name": "Busca Data Post",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "o3wOJfxXzuZsmCis",
+          "name": "Supa Instagram Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bea18662-db1f-41b4-84b6-9fdb1f833ea1",
+              "leftValue": "={{ $('Apify Posts Data').item.json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        704
+      ],
+      "id": "35e32dd1-c486-4474-9a09-349b6c4bcf69",
+      "name": "Tem Erro?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Apify Posts Data').item.json.error }}",
+                    "rightValue": "no_items",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "0d165183-b979-4e9d-8248-1b5300813511"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sem Posts"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        512
+      ],
+      "id": "509cf6d9-6086-49a2-8888-be1d4e7b11c8",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "tableId": "scrape_jobs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "username",
+              "fieldValue": "={{ $('Params').item.json.account_handle }}"
+            },
+            {
+              "fieldId": "limit_posts",
+              "fieldValue": "={{ $('Params').item.json.post_limits }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "=error{{ $('Rota PostData').item.json.rota }}"
+            },
+            {
+              "fieldId": "completed_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "error_msg",
+              "fieldValue": "=Error : {{ $('Apify Posts Data').item.json.error }} / Description : {{ $('Apify Posts Data').item.json.errorDescription }}"
+            },
+            {
+              "fieldId": "controle",
+              "fieldValue": "={{ $json.rota }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        432,
+        512
+      ],
+      "id": "038cd6c4-0760-43bd-b3e0-b48f1f6db82b",
+      "name": "Finaliza Job Erro",
+      "credentials": {
+        "supabaseApi": {
+          "id": "o3wOJfxXzuZsmCis",
+          "name": "Supa Instagram Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "SbK00X0JYCPblD2wp",
+          "mode": "list",
+          "cachedResultName": "Instagram Comments Scraper (apify/instagram-comment-scraper)",
+          "cachedResultUrl": "https://console.apify.com/actors/SbK00X0JYCPblD2wp/input"
+        },
+        "customBody": "={\n    \"directUrls\": [\n        \"https://www.instagram.com/p/{{ $('Flatten Posts').item.json.shortCode }}\",\n        \"https://www.instagram.com/reel/{{ $('Flatten Posts').item.json.shortCode }}\"\n    ],\n    \"includeNestedComments\": true,\n    \"isNewestComments\": false,\n    \"resultsLimit\": {{ $('Flatten Posts').item.json.commentsCount }}\n}"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        704,
+        576
+      ],
+      "name": "Apify Comments",
+      "id": "6b679d3e-5832-4016-b496-c070e4608a5f",
+      "credentials": {
+        "apifyApi": {
+          "id": "xiqdphq7OrN8BBMi",
+          "name": "Apify Instagran Monitor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        688,
+        336
+      ],
+      "id": "d2ae46ef-62e5-4bcf-8a70-22d91d3a6572",
+      "name": "Loop Over Items"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Params": {
+      "main": [
+        [
+          {
+            "node": "Cria Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cria Job": {
+      "main": [
+        [
+          {
+            "node": "Verifica Perfil",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Busca Data Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Profile": {
+      "main": [
+        [
+          {
+            "node": "Save Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten Posts": {
+      "main": [
+        [
+          {
+            "node": "Save Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testa 120 Horas": {
+      "main": [
+        [
+          {
+            "node": "Apify Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Menos de 5 dias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perfil Existe?": {
+      "main": [
+        [
+          {
+            "node": "Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apify Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "main": [
+        [
+          {
+            "node": "Testa 120 Horas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifica Perfil": {
+      "main": [
+        [
+          {
+            "node": "Perfil Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nao tem Posts": {
+      "main": [
+        [
+          {
+            "node": "Apify Posts Primeira",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apify Posts Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Posts Primeira": {
+      "main": [
+        [
+          {
+            "node": "Flatten Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca Data Post": {
+      "main": [
+        [
+          {
+            "node": "Nao tem Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Posts Data": {
+      "main": [
+        [
+          {
+            "node": "Tem Erro?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem Erro?": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flatten Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Finaliza Job Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Posts": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Apify Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Comments": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "f395804d-f658-4696-bb53-82ec38a4ceef",
+  "activeVersionId": null,
+  "versionCounter": 278,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-05-07T20:19:44.364Z",
+      "createdAt": "2026-05-07T20:19:44.364Z",
+      "role": "workflow:owner",
+      "workflowId": "VdIbTgPcocM6mhdw",
+      "projectId": "HDCZE4IUw9KS2WL1",
+      "project": {
+        "updatedAt": "2026-04-25T06:06:33.787Z",
+        "createdAt": "2026-04-25T05:57:18.593Z",
+        "id": "HDCZE4IUw9KS2WL1",
+        "name": "Synapiens Development <synapiens@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "a3e10bf8-6240-4e87-9f09-99823d96b21a"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-05-11T01:52:13.660Z",
+      "createdAt": "2026-05-11T01:52:13.660Z",
+      "id": "w3V2M4sW7eo8yuSz",
+      "name": "Agente Instagram"
+    }
+  ],
+  "activeVersion": null
+}
