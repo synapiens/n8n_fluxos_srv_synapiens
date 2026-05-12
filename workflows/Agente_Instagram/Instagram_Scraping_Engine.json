@@ -1,0 +1,490 @@
+{
+  "updatedAt": "2026-05-11T01:52:28.719Z",
+  "createdAt": "2026-05-09T03:26:00.300Z",
+  "id": "wpGlASRkvPVRMre2",
+  "name": "Instagram Scraping Engine",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1596b942-d4c8-4f53-a356-444cacda99fc",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a01",
+              "name": "ig_username",
+              "value": "nike",
+              "type": "string"
+            },
+            {
+              "id": "a02",
+              "name": "ig_session_id",
+              "value": "COLE_AQUI_SEU_SESSIONID",
+              "type": "string"
+            },
+            {
+              "id": "a03",
+              "name": "ig_csrf_token",
+              "value": "COLE_AQUI_SEU_CSRFTOKEN",
+              "type": "string"
+            },
+            {
+              "id": "a04",
+              "name": "ig_app_id",
+              "value": "936619743392459",
+              "type": "string"
+            },
+            {
+              "id": "a05",
+              "name": "user_agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              "type": "string"
+            },
+            {
+              "id": "a06",
+              "name": "anthropic_api_key",
+              "value": "COLE_AQUI_SUA_CHAVE_ANTHROPIC",
+              "type": "string"
+            },
+            {
+              "id": "a07",
+              "name": "delay_min_ms",
+              "value": 3000,
+              "type": "number"
+            },
+            {
+              "id": "a08",
+              "name": "delay_max_ms",
+              "value": 8000,
+              "type": "number"
+            },
+            {
+              "id": "a09",
+              "name": "max_posts",
+              "value": 12,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "43fe24fc-e520-45c9-b891-e6783962d66d",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -272,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://www.instagram.com/api/v1/users/web_profile_info/?username=' + $json.ig_username }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-ig-app-id",
+              "value": "={{ $json.ig_app_id }}"
+            },
+            {
+              "name": "cookie",
+              "value": "={{ 'sessionid=' + $json.ig_session_id + '; csrftoken=' + $json.ig_csrf_token }}"
+            },
+            {
+              "name": "user-agent",
+              "value": "={{ $json.user_agent }}"
+            },
+            {
+              "name": "x-csrftoken",
+              "value": "={{ $json.ig_csrf_token }}"
+            },
+            {
+              "name": "referer",
+              "value": "https://www.instagram.com/"
+            },
+            {
+              "name": "accept",
+              "value": "*/*"
+            },
+            {
+              "name": "accept-language",
+              "value": "pt-BR,pt;q=0.9,en-US;q=0.8"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f2d85f8e-6560-4481-9eb7-8b05ba475943",
+      "name": "HTTP Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -16,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Set Config').first().json;\nconst raw = $input.first().json;\n\nif (!raw.data || !raw.data.user) {\n  throw new Error('Perfil nao encontrado ou sessao expirada. Verifique sessionid e csrftoken no Set Config.');\n}\n\nconst user = raw.data.user;\nconst maxPosts = parseInt(cfg.max_posts) || 12;\n\nconst profile = {\n  username:    user.username || '',\n  full_name:   user.full_name || '',\n  biography:   user.biography || '',\n  followers:   (user.edge_followed_by && user.edge_followed_by.count) || 0,\n  following:   (user.edge_follow && user.edge_follow.count) || 0,\n  posts_count: (user.edge_owner_to_timeline_media && user.edge_owner_to_timeline_media.count) || 0,\n  is_private:  user.is_private || false,\n  is_verified: user.is_verified || false,\n  profile_pic: user.profile_pic_url_hd || user.profile_pic_url || ''\n};\n\nconst edges = (user.edge_owner_to_timeline_media && user.edge_owner_to_timeline_media.edges) || [];\n\nconst posts = edges.slice(0, maxPosts).map(function(e) {\n  const cap = e.node.edge_media_to_caption && e.node.edge_media_to_caption.edges && e.node.edge_media_to_caption.edges[0];\n  return {\n    id:             e.node.id,\n    shortcode:      e.node.shortcode,\n    caption:        (cap && cap.node && cap.node.text) || '',\n    likes:          (e.node.edge_liked_by && e.node.edge_liked_by.count) || 0,\n    comments_count: (e.node.edge_media_to_comment && e.node.edge_media_to_comment.count) || 0,\n    image_url:      e.node.display_url || '',\n    timestamp:      e.node.taken_at_timestamp || 0,\n    is_video:       e.node.is_video || false,\n    profile: profile,\n    cfg: {\n      ig_session_id:     cfg.ig_session_id,\n      ig_csrf_token:     cfg.ig_csrf_token,\n      ig_app_id:         cfg.ig_app_id,\n      user_agent:        cfg.user_agent,\n      delay_min_ms:      parseInt(cfg.delay_min_ms) || 3000,\n      delay_max_ms:      parseInt(cfg.delay_max_ms) || 8000,\n      anthropic_api_key: cfg.anthropic_api_key\n    }\n  };\n});\n\nreturn posts.map(function(p) { return { json: p }; });"
+      },
+      "id": "04aa0f0d-4bef-4e16-9997-04569153a145",
+      "name": "Extract Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "892d8584-8781-4d9e-b915-8769e5defceb",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        496,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://www.instagram.com/api/v1/media/' + $json.id + '/comments/?can_support_threading=true&permalink_enabled=false' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-ig-app-id",
+              "value": "={{ $json.cfg.ig_app_id }}"
+            },
+            {
+              "name": "cookie",
+              "value": "={{ 'sessionid=' + $json.cfg.ig_session_id + '; csrftoken=' + $json.cfg.ig_csrf_token }}"
+            },
+            {
+              "name": "user-agent",
+              "value": "={{ $json.cfg.user_agent }}"
+            },
+            {
+              "name": "x-csrftoken",
+              "value": "={{ $json.cfg.ig_csrf_token }}"
+            },
+            {
+              "name": "referer",
+              "value": "={{ 'https://www.instagram.com/p/' + $json.shortcode + '/' }}"
+            },
+            {
+              "name": "accept",
+              "value": "*/*"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "faa09bc1-df68-4c8f-a5bf-f2210822240d",
+      "name": "HTTP Comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        752,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const post = $('Split In Batches').item.json;\nconst cfg  = post.cfg;\nconst raw  = $input.first().json;\nconst rawComments = (raw && raw.comments) || [];\n\nconst leadKws = [\n  'quanto custa','quero comprar','manda inbox','como compro','tem a venda',\n  'how much','want to buy','dm me','price?','where to buy','link?'\n];\n\nfunction esc(s) { return (s || '').replace(/'/g, \"''\").replace(/\\n/g, ' ').substring(0, 2000); }\nfunction escJ(s){ return (s || '').replace(/'/g, \"''\"); }\n\nconst comments = rawComments.map(function(c) {\n  const text = c.text || '';\n  const mentions = (text.match(/@([a-zA-Z0-9._]+)/g) || []).map(function(m){ return m.slice(1); });\n  const hashtags = (text.match(/#([a-zA-Z0-9_]+)/g)  || []).map(function(h){ return h.slice(1); });\n  return {\n    comment_id: String(c.pk || c.id || ''),\n    post_id:    post.id,\n    username:   (c.user && c.user.username) || '',\n    text:       text,\n    mentions:   mentions,\n    hashtags:   hashtags,\n    is_lead:    leadKws.some(function(kw){ return text.toLowerCase().indexOf(kw) > -1; }),\n    timestamp:  c.created_at || 0,\n    likes:      c.comment_like_count || 0\n  };\n});\n\n// --- Build profile INSERT ---\nvar p = post.profile;\nvar profile_query = [\n  'INSERT INTO profiles (username, full_name, biography, followers, following, posts_count, is_private, is_verified)',\n  'VALUES (',\n  \"  '\" + esc(p.username) + \"',\",\n  \"  '\" + esc(p.full_name) + \"',\",\n  \"  '\" + esc(p.biography) + \"',\",\n  '  ' + p.followers + ', ' + p.following + ', ' + p.posts_count + ',',\n  '  ' + p.is_private + ', ' + p.is_verified,\n  ')',\n  'ON CONFLICT (username) DO UPDATE SET',\n  '  followers   = EXCLUDED.followers,',\n  '  following   = EXCLUDED.following,',\n  '  posts_count = EXCLUDED.posts_count,',\n  '  updated_at  = NOW()'\n].join('\\n');\n\n// --- Build post INSERT ---\nvar post_query = [\n  'INSERT INTO posts (id, username, caption, likes, comments, image_url, is_video, post_timestamp)',\n  'VALUES (',\n  \"  '\" + post.id + \"',\",\n  \"  '\" + esc(p.username) + \"',\",\n  \"  '\" + esc(post.caption) + \"',\",\n  '  ' + post.likes + ', ' + post.comments_count + ',',\n  \"  '\" + esc(post.image_url) + \"',\",\n  '  ' + post.is_video + ',',\n  '  to_timestamp(' + (post.timestamp || 0) + ')',\n  ')',\n  'ON CONFLICT (id) DO UPDATE SET',\n  '  likes    = EXCLUDED.likes,',\n  '  comments = EXCLUDED.comments'\n].join('\\n');\n\n// --- Build comments bulk INSERT ---\nvar comments_query = 'SELECT 1 -- sem comentarios';\nif (comments.length > 0) {\n  var vals = comments.map(function(c) {\n    var t = esc(c.text);\n    var u = esc(c.username);\n    var m = escJ(JSON.stringify(c.mentions));\n    var h = escJ(JSON.stringify(c.hashtags));\n    return \"('\"+c.comment_id+\"','\"+c.post_id+\"','\"+u+\"','\"+t+\"','\"+m+\"'::jsonb,'\"+h+\"'::jsonb,\"+c.is_lead+\",to_timestamp(\"+(c.timestamp||0)+\"),\"+c.likes+\")\";\n  }).join(',');\n  comments_query = 'INSERT INTO comments (comment_id,post_id,username,comment,mentions,hashtags,is_lead,comment_timestamp,likes) VALUES ' + vals + ' ON CONFLICT (comment_id) DO NOTHING';\n}\n\nvar commentsForAI = comments.map(function(c){ return '@' + c.username + ': ' + c.text; }).join('\\n').substring(0, 8000);\n\nreturn [{\n  json: {\n    profile_query:   profile_query,\n    post_query:      post_query,\n    comments_query:  comments_query,\n    commentsForAI:   commentsForAI,\n    lead_count:      comments.filter(function(c){ return c.is_lead; }).length,\n    total_comments:  comments.length,\n    post_username:   p.username,\n    cfg:             cfg,\n    post:            post\n  }\n}];"
+      },
+      "id": "d6c303bc-f7a1-4c68-9ce6-bf4bc961692c",
+      "name": "Process Comments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ Math.floor(Math.random() * ($json.cfg.delay_max_ms - $json.cfg.delay_min_ms)) + $json.cfg.delay_min_ms }}",
+        "unit": "milliseconds"
+      },
+      "id": "6db79cda-194c-4acf-99ea-afb22740cb29",
+      "name": "Wait Anti-Ban",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        160
+      ],
+      "webhookId": "ig-scraper-wait-001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.profile_query }}",
+        "options": {}
+      },
+      "id": "2026aab8-0ecd-4bc8-a918-cc357c17b7d2",
+      "name": "PG Save Profile",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.post_query }}",
+        "options": {}
+      },
+      "id": "7cb1acb0-acd4-4f14-adab-75fbeea01b9f",
+      "name": "PG Save Post",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.comments_query }}",
+        "options": {}
+      },
+      "id": "a96b1a56-0226-455c-b2de-794bdb987497",
+      "name": "PG Save Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        768,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $json.cfg.anthropic_api_key }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-sonnet-4-20250514',\n  max_tokens: 1024,\n  messages: [{\n    role: 'user',\n    content: 'Analise os comentários do perfil @' + $json.post_username + '.\\n' +\n             'Total: ' + $json.total_comments + ' comentários | Leads detectados: ' + $json.lead_count + '\\n\\n' +\n             'Retorne SOMENTE um JSON válido (sem markdown) com esta estrutura:\\n' +\n             '{\\n' +\n             '  \"sentiment\": \"positivo|negativo|neutro|misto\",\\n' +\n             '  \"sentiment_score\": 0.0,\\n' +\n             '  \"leads\": [\"texto do comentário de lead\"],\\n' +\n             '  \"top_mentions\": [\"@usuario\"],\\n' +\n             '  \"top_hashtags\": [\"#hashtag\"],\\n' +\n             '  \"audience_category\": \"moda|fitness|tech|outro\",\\n' +\n             '  \"resumo\": \"resumo em 2 frases\"\\n' +\n             '}\\n\\n' +\n             'Comentários:\\n' + $json.commentsForAI\n  }]\n}) }}",
+        "options": {}
+      },
+      "id": "4903830c-db49-4187-b328-b9c610b3e5ed",
+      "name": "AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1056,
+        384
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Config": {
+      "main": [
+        [
+          {
+            "node": "HTTP Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Profile": {
+      "main": [
+        [
+          {
+            "node": "Extract Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Posts": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "HTTP Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Comments": {
+      "main": [
+        [
+          {
+            "node": "Process Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Comments": {
+      "main": [
+        [
+          {
+            "node": "Wait Anti-Ban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Anti-Ban": {
+      "main": [
+        [
+          {
+            "node": "PG Save Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Save Profile": {
+      "main": [
+        [
+          {
+            "node": "PG Save Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Save Post": {
+      "main": [
+        [
+          {
+            "node": "PG Save Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Save Comments": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "5c2e9c77-40ad-4dff-8228-64227b32337b",
+  "activeVersionId": null,
+  "versionCounter": 37,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-05-09T03:26:00.300Z",
+      "createdAt": "2026-05-09T03:26:00.300Z",
+      "role": "workflow:owner",
+      "workflowId": "wpGlASRkvPVRMre2",
+      "projectId": "HDCZE4IUw9KS2WL1",
+      "project": {
+        "updatedAt": "2026-04-25T06:06:33.787Z",
+        "createdAt": "2026-04-25T05:57:18.593Z",
+        "id": "HDCZE4IUw9KS2WL1",
+        "name": "Synapiens Development <synapiens@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "a3e10bf8-6240-4e87-9f09-99823d96b21a"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "updatedAt": "2026-05-11T01:52:13.660Z",
+      "createdAt": "2026-05-11T01:52:13.660Z",
+      "id": "w3V2M4sW7eo8yuSz",
+      "name": "Agente Instagram"
+    }
+  ],
+  "activeVersion": null
+}
